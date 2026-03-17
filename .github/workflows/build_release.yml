@@ -1,0 +1,138 @@
+name: Build and Release
+on:
+  push:
+    branches:
+      - master
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Set up gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Build debug APK
+        run: ./gradlew assembleDevDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: MangaReader-debug.apk
+          path: app/build/outputs/apk/dev/debug/app-dev-debug.apk
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Set up gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Write google-services.json
+        uses: DamianReeves/write-file-action@v1.3
+        with:
+          path: app/google-services.json
+          contents: ${{ secrets.GOOGLE_SERVICES_TEXT }}
+          write-mode: overwrite
+        continue-on-error: true
+
+      - name: Write client_secrets.json
+        uses: DamianReeves/write-file-action@v1.3
+        with:
+          path: app/src/main/assets/client_secrets.json
+          contents: ${{ secrets.CLIENT_SECRETS_TEXT }}
+          write-mode: overwrite
+        continue-on-error: true
+
+      - name: Build release APK
+        run: ./gradlew assembleStandardRelease
+
+      - name: Run tests
+        run: ./gradlew testReleaseUnitTest testStandardReleaseUnitTest
+        continue-on-error: true
+
+      - name: Sign APK
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: app/build/outputs/apk/standard/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: '35.0.1'
+        continue-on-error: true
+
+      - name: Prepare APKs
+        run: |
+          set -e
+          mv app/build/outputs/apk/standard/release/app-standard-universal-release-unsigned-signed.apk MangaReader.apk 2>/dev/null || true
+          mv app/build/outputs/apk/standard/release/app-standard-arm64-v8a-release-unsigned-signed.apk MangaReader-arm64-v8a.apk 2>/dev/null || true
+          mv app/build/outputs/apk/standard/release/app-standard-armeabi-v7a-release-unsigned-signed.apk MangaReader-armeabi-v7a.apk 2>/dev/null || true
+          mv app/build/outputs/apk/standard/release/app-standard-x86-release-unsigned-signed.apk MangaReader-x86.apk 2>/dev/null || true
+          mv app/build/outputs/apk/standard/release/app-standard-x86_64-release-unsigned-signed.apk MangaReader-x86_64.apk 2>/dev/null || true
+
+      - name: Get commit info
+        id: commit-info
+        run: |
+          echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "message=$(git log -1 --pretty=format:'%s')" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: MangaReader v${{ github.run_number }}
+          body: |
+            ### What's New
+            
+            **Commit:** ${{ steps.commit-info.outputs.sha }}
+            **Message:** ${{ steps.commit-info.outputs.message }}
+            
+            ### Download
+            
+            > ### If you are unsure which version to download then go with `MangaReader.apk`
+            
+            | Architecture | APK |
+            |-------------|-----|
+            | Universal | MangaReader.apk |
+            | arm64-v8a | MangaReader-arm64-v8a.apk |
+            | armeabi-v7a | MangaReader-armeabi-v7a.apk |
+            | x86 | MangaReader-x86.apk |
+            | x86_64 | MangaReader-x86_64.apk |
+          files: |
+            MangaReader.apk
+            MangaReader-arm64-v8a.apk
+            MangaReader-armeabi-v7a.apk
+            MangaReader-x86.apk
+            MangaReader-x86_64.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
