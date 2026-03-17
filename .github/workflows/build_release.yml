@@ -5,6 +5,9 @@ on:
       - master
       - main
 
+permissions:
+  contents: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -16,7 +19,7 @@ jobs:
 
     steps:
       - name: Clone repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -30,21 +33,20 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDevDebug
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v7
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
         with:
           name: MangaReader-debug.apk
           path: app/build/outputs/apk/dev/debug/app-dev-debug.apk
 
   release:
-    name: Create Release
+    name: Build Release APK
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
 
     steps:
       - name: Clone repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -55,49 +57,26 @@ jobs:
       - name: Set up gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Write google-services.json
-        uses: DamianReeves/write-file-action@v1.3
-        with:
-          path: app/google-services.json
-          contents: ${{ secrets.GOOGLE_SERVICES_TEXT }}
-          write-mode: overwrite
-        continue-on-error: true
-
-      - name: Write client_secrets.json
-        uses: DamianReeves/write-file-action@v1.3
-        with:
-          path: app/src/main/assets/client_secrets.json
-          contents: ${{ secrets.CLIENT_SECRETS_TEXT }}
-          write-mode: overwrite
-        continue-on-error: true
-
-      - name: Build release APK
+      - name: Build release APK (unsigned)
         run: ./gradlew assembleStandardRelease
 
-      - name: Run tests
-        run: ./gradlew testReleaseUnitTest testStandardReleaseUnitTest
-        continue-on-error: true
-
-      - name: Sign APK
-        uses: r0adkll/sign-android-release@v1
-        with:
-          releaseDirectory: app/build/outputs/apk/standard/release
-          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-          alias: ${{ secrets.ALIAS }}
-          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-        env:
-          BUILD_TOOLS_VERSION: '35.0.1'
-        continue-on-error: true
-
-      - name: Prepare APKs
+      - name: Find APKs
+        id: find-apks
         run: |
-          set -e
-          mv app/build/outputs/apk/standard/release/app-standard-universal-release-unsigned-signed.apk MangaReader.apk 2>/dev/null || true
-          mv app/build/outputs/apk/standard/release/app-standard-arm64-v8a-release-unsigned-signed.apk MangaReader-arm64-v8a.apk 2>/dev/null || true
-          mv app/build/outputs/apk/standard/release/app-standard-armeabi-v7a-release-unsigned-signed.apk MangaReader-armeabi-v7a.apk 2>/dev/null || true
-          mv app/build/outputs/apk/standard/release/app-standard-x86-release-unsigned-signed.apk MangaReader-x86.apk 2>/dev/null || true
-          mv app/build/outputs/apk/standard/release/app-standard-x86_64-release-unsigned-signed.apk MangaReader-x86_64.apk 2>/dev/null || true
+          echo "universal=$(ls app/build/outputs/apk/standard/release/app-standard-universal-release-unsigned.apk 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+          echo "arm64=$(ls app/build/outputs/apk/standard/release/app-standard-arm64-v8a-release-unsigned.apk 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+          echo "armv7=$(ls app/build/outputs/apk/standard/release/app-standard-armeabi-v7a-release-unsigned.apk 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+          echo "x86=$(ls app/build/outputs/apk/standard/release/app-standard-x86-release-unsigned.apk 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+          echo "x86_64=$(ls app/build/outputs/apk/standard/release/app-standard-x86_64-release-unsigned.apk 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+
+      - name: Rename APKs
+        if: steps.find-apks.outputs.universal != ''
+        run: |
+          mv app/build/outputs/apk/standard/release/app-standard-universal-release-unsigned.apk MangaReader.apk
+          mv app/build/outputs/apk/standard/release/app-standard-arm64-v8a-release-unsigned.apk MangaReader-arm64-v8a.apk
+          mv app/build/outputs/apk/standard/release/app-standard-armeabi-v7a-release-unsigned.apk MangaReader-armeabi-v7a.apk
+          mv app/build/outputs/apk/standard/release/app-standard-x86-release-unsigned.apk MangaReader-x86.apk
+          mv app/build/outputs/apk/standard/release/app-standard-x86_64-release-unsigned.apk MangaReader-x86_64.apk
 
       - name: Get commit info
         id: commit-info
@@ -105,7 +84,19 @@ jobs:
           echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
           echo "message=$(git log -1 --pretty=format:'%s')" >> $GITHUB_OUTPUT
 
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MangaReader-release
+          path: |
+            MangaReader.apk
+            MangaReader-arm64-v8a.apk
+            MangaReader-armeabi-v7a.apk
+            MangaReader-x86.apk
+            MangaReader-x86_64.apk
+
       - name: Create Release
+        if: steps.find-apks.outputs.universal != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
@@ -127,12 +118,5 @@ jobs:
             | armeabi-v7a | MangaReader-armeabi-v7a.apk |
             | x86 | MangaReader-x86.apk |
             | x86_64 | MangaReader-x86_64.apk |
-          files: |
-            MangaReader.apk
-            MangaReader-arm64-v8a.apk
-            MangaReader-armeabi-v7a.apk
-            MangaReader-x86.apk
-            MangaReader-x86_64.apk
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
+          GITHUB_TOKEN: ${{ github.token }}
