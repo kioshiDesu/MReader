@@ -16,6 +16,4 @@ local.properties
 .DS_Store
 
 # SY ignores
-google-services.json
-/app/src/main/assets/client_secrets.json
 *.apk
