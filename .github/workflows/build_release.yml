@@ -54,29 +54,35 @@ jobs:
           java-version: 17
           distribution: temurin
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Set up gradle
         uses: gradle/actions/setup-gradle@v5
+
+      - name: Generate debug keystore
+        run: |
+          mkdir -p ~/.android
+          keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Build release APK (unsigned)
         run: ./gradlew assembleStandardRelease
 
-      - name: Find APKs
-        id: find-apks
+      - name: Sign APK
         run: |
-          echo "universal=$(ls app/build/outputs/apk/standard/release/app-standard-universal-release-unsigned.apk 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-          echo "arm64=$(ls app/build/outputs/apk/standard/release/app-standard-arm64-v8a-release-unsigned.apk 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-          echo "armv7=$(ls app/build/outputs/apk/standard/release/app-standard-armeabi-v7a-release-unsigned.apk 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-          echo "x86=$(ls app/build/outputs/apk/standard/release/app-standard-x86-release-unsigned.apk 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
-          echo "x86_64=$(ls app/build/outputs/apk/standard/release/app-standard-x86_64-release-unsigned.apk 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+          ${ANDROID_SDK_ROOT}/build-tools/35.0.1/apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --key-pass pass:android --out app/build/outputs/apk/standard/release/app-standard-universal-release-signed.apk app/build/outputs/apk/standard/release/app-standard-universal-release-unsigned.apk
+          ${ANDROID_SDK_ROOT}/build-tools/35.0.1/apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --key-pass pass:android --out app/build/outputs/apk/standard/release/app-standard-arm64-v8a-release-signed.apk app/build/outputs/apk/standard/release/app-standard-arm64-v8a-release-unsigned.apk
+          ${ANDROID_SDK_ROOT}/build-tools/35.0.1/apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --key-pass pass:android --out app/build/outputs/apk/standard/release/app-standard-armeabi-v7a-release-signed.apk app/build/outputs/apk/standard/release/app-standard-armeabi-v7a-release-unsigned.apk
+          ${ANDROID_SDK_ROOT}/build-tools/35.0.1/apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --key-pass pass:android --out app/build/outputs/apk/standard/release/app-standard-x86-release-signed.apk app/build/outputs/apk/standard/release/app-standard-x86-release-unsigned.apk
+          ${ANDROID_SDK_ROOT}/build-tools/35.0.1/apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --key-pass pass:android --out app/build/outputs/apk/standard/release/app-standard-x86_64-release-signed.apk app/build/outputs/apk/standard/release/app-standard-x86_64-release-unsigned.apk
 
       - name: Rename APKs
-        if: steps.find-apks.outputs.universal != ''
         run: |
-          mv app/build/outputs/apk/standard/release/app-standard-universal-release-unsigned.apk MangaReader.apk
-          mv app/build/outputs/apk/standard/release/app-standard-arm64-v8a-release-unsigned.apk MangaReader-arm64-v8a.apk
-          mv app/build/outputs/apk/standard/release/app-standard-armeabi-v7a-release-unsigned.apk MangaReader-armeabi-v7a.apk
-          mv app/build/outputs/apk/standard/release/app-standard-x86-release-unsigned.apk MangaReader-x86.apk
-          mv app/build/outputs/apk/standard/release/app-standard-x86_64-release-unsigned.apk MangaReader-x86_64.apk
+          mv app/build/outputs/apk/standard/release/app-standard-universal-release-signed.apk MangaReader.apk
+          mv app/build/outputs/apk/standard/release/app-standard-arm64-v8a-release-signed.apk MangaReader-arm64-v8a.apk
+          mv app/build/outputs/apk/standard/release/app-standard-armeabi-v7a-release-signed.apk MangaReader-armeabi-v7a.apk
+          mv app/build/outputs/apk/standard/release/app-standard-x86-release-signed.apk MangaReader-x86.apk
+          mv app/build/outputs/apk/standard/release/app-standard-x86_64-release-signed.apk MangaReader-x86_64.apk
 
       - name: Get commit info
         id: commit-info
@@ -96,7 +102,6 @@ jobs:
             MangaReader-x86_64.apk
 
       - name: Create Release
-        if: steps.find-apks.outputs.universal != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
