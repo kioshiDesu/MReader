@@ -85,7 +85,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
-                <data android:scheme="tachiyomi" />
+                <data android:scheme="mangareader" />
                 <data android:host="add-repo" />
             </intent-filter>
 
@@ -410,7 +410,7 @@
 
                 <data
                     android:host="mangadex-auth"
-                    android:scheme="tachiyomisy" />
+                    android:scheme="mangareader" />
             </intent-filter>
         </activity>
 

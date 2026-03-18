@@ -82,4 +82,4 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](./LICE
 
 ## Disclaimer
 
-This app is a fork of TachiyomiSY. Extension-related issues should be reported to the respective extension maintainers.
+This app is a fork of Tachiyomi. Extension-related issues should be reported to the respective extension maintainers.
