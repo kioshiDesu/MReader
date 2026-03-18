@@ -2,11 +2,11 @@ name: Build and Release
 on:
   push:
     branches:
-      - master
       - main
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -31,13 +31,13 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
 
       - name: Build debug APK
-        run: ./gradlew assembleDevDebug
+        run: ./gradlew assembleStandardDebug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: MangaReader-debug.apk
-          path: app/build/outputs/apk/dev/debug/app-dev-debug.apk
+          path: app/build/outputs/apk/standard/debug/app-standard-debug.apk
 
   release:
     name: Build Release APK
@@ -119,4 +119,4 @@ jobs:
             | x86 | MangaReader-x86.apk |
             | x86_64 | MangaReader-x86_64.apk |
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
