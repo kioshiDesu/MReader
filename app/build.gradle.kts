@@ -29,10 +29,10 @@ android {
     namespace = "eu.kanade.tachiyomi"
 
     defaultConfig {
-        applicationId = "com.svahc.youreads"
+        applicationId = "eu.kanade.tachiyomi.sy"
 
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 76
+        versionName = "1.12.0"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")

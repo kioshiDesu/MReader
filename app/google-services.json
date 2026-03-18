@@ -1,15 +1,15 @@
 {
   "project_info": {
     "project_number": "000000000000",
-    "project_id": "youreads-project",
-    "storage_bucket": "youreads-project.appspot.com"
+    "project_id": "dummy-project",
+    "storage_bucket": "dummy-project.appspot.com"
   },
   "client": [
     {
       "client_info": {
         "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
         "android_client_info": {
-          "package_name": "com.svahc.youreads"
+          "package_name": "eu.kanade.tachiyomi.sy"
         }
       },
       "api_key": [
@@ -22,7 +22,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:000000000000:android:0000000000000001",
         "android_client_info": {
-          "package_name": "com.svahc.youreads.debug"
+          "package_name": "eu.kanade.tachiyomi.sy.debug"
         }
       },
       "api_key": [

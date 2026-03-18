@@ -209,7 +209,7 @@ object AboutScreen : Screen() {
                             label = "GitHub",
                             icon = CustomIcons.Github,
                             // SY -->
-                            url = "https://github.com/kioshiDesu/MReader",
+                            url = "https://github.com/jobobby04/tachiyomisy",
                             // SY <--
                         )
                     }
